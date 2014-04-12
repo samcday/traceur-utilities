@@ -1,0 +1,144 @@
+<html>
+<head>
+  <title>Traceur Sourcemaps</title>
+  <link rel="stylesheet" href="bower_components/codemirror/lib/codemirror.css">
+  <link rel="stylesheet" href="bower_components/codemirror/theme/neat.css">
+  <style>
+    .sourceMapped {
+      /*position: absolute;
+      margin-top: -1em;
+      height: 1em;
+      width: 0.5em;*/
+      background: pink;
+      /*z-index: 10000;*/
+    }
+
+    .generatedMarker {
+      background: pink;
+    }
+
+    #sourceEditor {
+      position: absolute;
+      left: 0;
+      width: 50%;
+      top: 0;
+      height: 100%;
+    }
+
+    #compiledEditor {
+      position: absolute;
+      left: 50%;
+      right: 0;
+      top: 0;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <textarea class="source" id="source"></textarea>
+  <textarea class="compiled" id="compiled"></textarea>
+
+  <script src="bower_components/traceur/traceur.min.js"></script>
+  <script src="bower_components/codemirror/lib/codemirror.js"></script>
+  <script src="bower_components/codemirror/mode/javascript/javascript.js"></script>
+  <script>
+    var ErrorReporter = traceur.util.ErrorReporter;
+    var FromOptionsTransformer = traceur.codegeneration.FromOptionsTransformer;
+    var Parser = traceur.syntax.Parser;
+    var SourceFile = traceur.syntax.SourceFile;
+    var TreeWriter = traceur.outputgeneration.TreeWriter;
+    var SourceMapGenerator = traceur.outputgeneration.SourceMapGenerator;
+    var SourceMapConsumer = traceur.outputgeneration.SourceMapConsumer;
+
+    traceur.options.experimental = true;
+
+    var sourceEditor = CodeMirror.fromTextArea(document.querySelector("#source"), {
+      mode: "text/javascript",
+      theme: "neat"
+    });
+
+    var compiledEditor = CodeMirror.fromTextArea(document.querySelector("#compiled"), {
+      mode: "text/javascript",
+      theme: "neat",
+      readOnly: true
+    });
+
+    sourceEditor.getWrapperElement().id = "sourceEditor";
+    compiledEditor.getWrapperElement().id = "compiledEditor";
+
+    var sourceMarkers = {},
+        compiledMarkers = {},
+        sourceMap;
+
+    sourceEditor.getWrapperElement().addEventListener("mousemove", function(ev) {
+      var matches = /sourceMapped-(\d+)x(\d+)/.exec(ev.target.className);
+      if (matches) {
+        var line = matches[1];
+        var col = matches[2];
+        var pos = sourceMap.generatedPositionFor({source: "es6.js", line: line, column: col});
+
+        compiledEditor.getAllMarks().forEach(function(marker) {
+          marker.clear();
+        });
+
+        compiledEditor.markText({line: pos.line - 1, ch: pos.column}, {line: pos.line - 1, ch: pos.column + 1}, {className: "generatedMarker"}); 
+      }
+    });
+
+    sourceEditor.on("change", function(instance, change) {
+      var source = instance.getValue();
+      var originalSourceMarkers = sourceMarkers;
+      var originalCompiledMarkers = compiledMarkers;
+      sourceMarkers = {};
+      compiledMarkers = {};
+
+      if (source) {
+        var sourceFile = new SourceFile("es6.js", source);
+        var parser = new Parser(sourceFile);
+        var tree = parser.parseModule();
+        var reporter = new ErrorReporter();
+        var transformer = new FromOptionsTransformer(reporter);
+        tree = transformer.transform(tree);
+        if (reporter.hadError())
+          throw new Error("Error transforming");
+
+        var sourceMapGenerator = new SourceMapGenerator({ file: "es6.js" });
+        var options = { sourceMapGenerator: sourceMapGenerator };
+        var compiled = TreeWriter.write(tree, options);
+        compiledEditor.setValue(compiled);
+
+        sourceMap = new SourceMapConsumer(options.sourceMap);
+
+        sourceMap.eachMapping(function(mapping) {
+          if (mapping.source !== "es6.js") {
+            return;
+          }
+
+          var id = mapping.originalLine + "x" + mapping.originalColumn; // + "x" + mapping.generatedLine + "x" + mapping.generatedColumn;
+
+          if (sourceMarkers[id]) {
+            return;
+          }
+
+          sourceMarkers[id] = originalSourceMarkers[id];
+          if (!sourceMarkers[id]) {
+            sourceMarkers[id] = sourceEditor.markText({line: mapping.originalLine - 1, ch: Math.max(0, mapping.originalColumn - 1)}, {line: mapping.originalLine - 1, ch: mapping.originalColumn + 1}, {className: "sourceMapped sourceMapped-" + id})
+          }
+          delete originalSourceMarkers[id];
+        }, null, SourceMapConsumer.ORIGINAL_ORDER);
+      } else {
+        compiledEditor.setValue("");
+      }
+
+      Object.keys(originalSourceMarkers).forEach(function(id) {
+        originalSourceMarkers[id].clear();
+      });
+
+      Object.keys(originalCompiledMarkers).forEach(function(id) {
+        originalCompiledMarkers[id].clear();
+      });
+    });
+
+  </script>
+</body>
+</html>

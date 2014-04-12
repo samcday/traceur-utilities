@@ -1,0 +1,71 @@
+<html>
+<head>
+  <title>Traceur AST</title>
+  <link rel="stylesheet" href="bower_components/codemirror/lib/codemirror.css">
+  <link rel="stylesheet" href="bower_components/codemirror/theme/neat.css">
+  <style>
+    #sourceEditor {
+      position: absolute;
+      left: 0;
+      width: 50%;
+      top: 0;
+      height: 100%;
+    }
+    #compiledEditor {
+      position: absolute;
+      left: 50%;
+      right: 0;
+      top: 0;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <textarea class="source" id="source"></textarea>
+  <textarea class="compiled" id="compiled"></textarea>
+
+  <script src="bower_components/traceur/traceur.js"></script>
+  <script src="bower_components/codemirror/lib/codemirror.js"></script>
+  <script src="bower_components/codemirror/mode/javascript/javascript.js"></script>
+  <script>
+    var ErrorReporter = traceur.util.ErrorReporter;
+    var FromOptionsTransformer = traceur.codegeneration.FromOptionsTransformer;
+    var Parser = traceur.syntax.Parser;
+    var ParseTree = traceur.syntax.ParseTree;
+    var SourceFile = traceur.syntax.SourceFile;
+    var TreeWriter = traceur.outputgeneration.TreeWriter;
+    console.log(traceur);
+
+    traceur.options.experimental = true;
+
+    var sourceEditor = CodeMirror.fromTextArea(document.querySelector("#source"), {
+      mode: "text/javascript",
+      theme: "neat"
+    });
+
+    var compiledEditor = CodeMirror.fromTextArea(document.querySelector("#compiled"), {
+      mode: "application/json",
+      theme: "neat",
+      readOnly: true
+    });
+
+    sourceEditor.getWrapperElement().id = "sourceEditor";
+    compiledEditor.getWrapperElement().id = "compiledEditor";
+
+    sourceEditor.on("change", function(instance, change) {
+      var source = instance.getValue();
+
+      if (source) {
+        var sourceFile = new SourceFile("es6.js", source);
+        var parser = new Parser(sourceFile);
+        var tree = parser.parseModule();
+
+        compiledEditor.setValue(tree.stringify());
+      } else {
+        compiledEditor.setValue("");
+      }
+    });
+
+  </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "name": "traceur-utilities",
+  "version": "0.0.0",
+  "authors": [
+    "Sam Day <sday@atlassian.com>"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "traceur": "~0.0.33",
+    "codemirror": "~4.0.3"
+  }
+}
