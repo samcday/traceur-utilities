@@ -14,6 +14,7 @@
   ],
   "dependencies": {
     "traceur": "~0.0.33",
-    "codemirror": "~4.0.3"
+    "codemirror": "~4.0.3",
+    "circular-json": "*"
   }
 }

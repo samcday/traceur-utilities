@@ -7,13 +7,20 @@
     #sourceEditor {
       position: absolute;
       left: 0;
-      width: 50%;
+      width: 33%;
       top: 0;
       height: 100%;
     }
-    #compiledEditor {
+    #astEditor {
       position: absolute;
-      left: 50%;
+      left: 33%;
+      width: 33%;
+      top: 0;
+      height: 100%;
+    }
+    #compiledAstEditor {
+      position: absolute;
+      left: 66%;
       right: 0;
       top: 0;
       height: 100%;
@@ -23,9 +30,11 @@
 <body>
   <textarea class="source" id="source"></textarea>
   <textarea class="compiled" id="compiled"></textarea>
+  <textarea class="compiled-ast" id="compiled-ast"></textarea>
 
   <script src="bower_components/traceur/traceur.js"></script>
   <script src="bower_components/codemirror/lib/codemirror.js"></script>
+  <script src="bower_components/circular-json/build/circular-json.js"></script>
   <script src="bower_components/codemirror/mode/javascript/javascript.js"></script>
   <script>
     var ErrorReporter = traceur.util.ErrorReporter;
@@ -34,7 +43,10 @@
     var ParseTree = traceur.syntax.ParseTree;
     var SourceFile = traceur.syntax.SourceFile;
     var TreeWriter = traceur.outputgeneration.TreeWriter;
-    console.log(traceur);
+
+    traceur.System.import("traceur@0.0.33/src/syntax/trees/ParseTree").then(function(module) {
+      module.ParseTree.prototype.toJSON = null;
+    })
 
     traceur.options.experimental = true;
 
@@ -43,14 +55,21 @@
       theme: "neat"
     });
 
-    var compiledEditor = CodeMirror.fromTextArea(document.querySelector("#compiled"), {
+    var astEditor = CodeMirror.fromTextArea(document.querySelector("#compiled"), {
+      mode: "application/json",
+      theme: "neat",
+      readOnly: true
+    });
+
+    var compiledAstEditor = CodeMirror.fromTextArea(document.querySelector("#compiled-ast"), {
       mode: "application/json",
       theme: "neat",
       readOnly: true
     });
 
     sourceEditor.getWrapperElement().id = "sourceEditor";
-    compiledEditor.getWrapperElement().id = "compiledEditor";
+    astEditor.getWrapperElement().id = "astEditor";
+    compiledAstEditor.getWrapperElement().id = "compiledAstEditor";
 
     sourceEditor.on("change", function(instance, change) {
       var source = instance.getValue();
@@ -58,11 +77,33 @@
       if (source) {
         var sourceFile = new SourceFile("es6.js", source);
         var parser = new Parser(sourceFile);
-        var tree = parser.parseModule();
+        var es6Tree = parser.parseModule();
+        var reporter = new ErrorReporter();
+        var transformer = new FromOptionsTransformer(reporter);
+        var tree = transformer.transform(es6Tree);
+        if (reporter.hadError())
+          throw new Error("Error transforming");
 
-        compiledEditor.setValue(tree.stringify());
+        function hydrateLocation(k, v) {
+          if (v && v.type) {
+            v.type_ = v.type;
+          }
+
+          if (k === "location" && v) {
+            v.start.line;
+            v.start.column;
+            v.end.line;
+            v.end.column;
+          }
+
+          return v;
+        }
+
+        astEditor.setValue(CircularJSON.stringify(es6Tree, hydrateLocation, 2));
+        compiledAstEditor.setValue(CircularJSON.stringify(tree, hydrateLocation, 2));
       } else {
-        compiledEditor.setValue("");
+        astEditor.setValue("");
+        compiledAstEditor.setValue("");
       }
     });
 
