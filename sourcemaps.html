@@ -42,6 +42,8 @@
   <script src="bower_components/codemirror/lib/codemirror.js"></script>
   <script src="bower_components/codemirror/mode/javascript/javascript.js"></script>
   <script>
+    traceur.options.modules = "commonjs";
+
     var ErrorReporter = traceur.util.ErrorReporter;
     var FromOptionsTransformer = traceur.codegeneration.FromOptionsTransformer;
     var Parser = traceur.syntax.Parser;

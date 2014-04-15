@@ -33,11 +33,12 @@
   <textarea class="compiled-ast" id="compiled-ast"></textarea>
 
   <script src="bower_components/traceur/traceur.js"></script>
+  <script src="MozillaParseTreeTransformer.js"></script>
   <script src="bower_components/codemirror/lib/codemirror.js"></script>
   <script src="bower_components/circular-json/build/circular-json.js"></script>
   <script src="bower_components/codemirror/mode/javascript/javascript.js"></script>
   <script>
-    var showLocations = false;
+    var showLocations = true;
 
     var ErrorReporter = traceur.util.ErrorReporter;
     var FromOptionsTransformer = traceur.codegeneration.FromOptionsTransformer;
@@ -89,6 +90,8 @@
         if (reporter.hadError())
           throw new Error("Error transforming");
 
+        var mozillaAst = new MozillaParseTreeTransformer().transformAny(tree);
+
         if (showLocations) {
           function hydrateLocation(k, v) {
             if (v && v.type) {
@@ -106,10 +109,10 @@
           }
 
           astEditor.setValue(CircularJSON.stringify(es6Tree, hydrateLocation, 2));
-          compiledAstEditor.setValue(CircularJSON.stringify(tree, hydrateLocation, 2));
+          compiledAstEditor.setValue(JSON.stringify(mozillaAst, null, 2));
         } else {
           astEditor.setValue(JSON.stringify(es6Tree, null, 2));
-          compiledAstEditor.setValue(JSON.stringify(tree, null, 2));
+          compiledAstEditor.setValue(JSON.stringify(mozillaAst, null, 2));
         }
       } else {
         astEditor.setValue("");
